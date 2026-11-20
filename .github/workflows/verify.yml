@@ -1,0 +1,37 @@
+name: Verify Satoshi archive frontend
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Check JavaScript syntax
+        run: node --check app.js
+      - name: Validate static page essentials
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const assert = require('node:assert/strict');
+          const html = fs.readFileSync('index.html', 'utf8');
+          const js = fs.readFileSync('app.js', 'utf8');
+          const css = fs.readFileSync('styles.css', 'utf8');
+          for (const id of ['archive','reader','mail-list','search','sender-filter','year-filter','reader-content']) {
+            assert(html.includes('id="' + id + '"'), 'Missing element: ' + id);
+          }
+          assert(html.includes('src="./app.js"'), 'Missing JS entrypoint');
+          assert(html.includes('href="./styles.css"'), 'Missing stylesheet');
+          assert(js.includes('mmalmi.github.io'), 'Missing source attribution');
+          assert(js.includes('textContent'), 'Email body must use textContent');
+          assert(css.includes('prefers-reduced-motion'), 'Accessibility media query missing');
+          console.log('All static checks passed');
+          NODE
